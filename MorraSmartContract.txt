@@ -1,0 +1,55 @@
+pragma solidity >=0.4.22 <0.6.0;
+
+contract MorraContract {
+    
+    struct gamer {
+        address payable gamerAddress;
+        uint256 numberPick;
+        uint256 numbeGuess;
+    }
+    bool public gameStarted = false;
+    gamer[2] gamers;
+    uint public temp;
+    
+    function startGame (uint number) payable external{
+        require(gameStarted==false);
+        require((number>=1)&&(number<=5));
+        gamers[0].gamerAddress = msg.sender;
+        gamers[0].numberPick = msg.value;
+        gamers[0].numbeGuess = number;
+        gameStarted = true;
+    }
+    
+    function joinGame (uint number) payable external{
+        require(gameStarted==true);
+        require((number>=1)&&(number<=5));
+        gamers[1].gamerAddress = msg.sender;
+        gamers[1].numberPick = msg.value;
+        gamers[1].numbeGuess = number;
+        getResult();
+        gameStarted = false;
+    }
+    
+    function getResult () internal{
+        
+        temp = gamers[0].numberPick + gamers[1].numberPick;
+        //  if gamer 1 win
+        if( (gamers[0].numberPick == gamers[1].numbeGuess) &&(gamers[1].numberPick != gamers[0].numbeGuess)){
+            sendEther(gamers[1].gamerAddress,temp);
+        }
+        //  if gamer 0 win
+        else if( (gamers[1].numberPick == gamers[0].numbeGuess) &&(gamers[0].numberPick != gamers[1].numbeGuess)){
+            sendEther(gamers[0].gamerAddress,temp);
+        } 
+        // if it is a tie
+        else{
+            sendEther(gamers[0].gamerAddress,gamers[0].numberPick);
+            sendEther(gamers[1].gamerAddress,gamers[1].numberPick);
+        }
+    }
+    
+    function sendEther (address payable target, uint number) internal{
+        target.transfer(number);
+    }
+    
+}
