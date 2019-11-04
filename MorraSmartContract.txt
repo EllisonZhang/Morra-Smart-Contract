@@ -12,9 +12,6 @@ contract MorraContract {
     uint public temp;
     address owner;
     string ownerName;
-    uint256 public pool;
-    uint public numberPickCheck;
-    uint public numbeGuessCheck;
     
     constructor(string memory name) public {
         owner = msg.sender;
@@ -38,8 +35,6 @@ contract MorraContract {
         gamers[1].gamerAddress = msg.sender;
         gamers[1].numberPick = msg.value;
         gamers[1].numbeGuess = number*1e18; //convert interger to Wei
-        numberPickCheck = gamers[1].numberPick;
-        numbeGuessCheck = gamers[1].numbeGuess;
         getResult();
         gameStarted = false;
     }
@@ -49,7 +44,6 @@ contract MorraContract {
         temp = gamers[0].numberPick + gamers[1].numberPick;
         //  if gamer 1 win
         if( (gamers[0].numberPick == gamers[1].numbeGuess)&&(gamers[1].numberPick != gamers[0].numbeGuess)){
-            pool = address(this).balance;
             sendEther(gamers[1].gamerAddress,temp);
         }
         //  if gamer 0 win
