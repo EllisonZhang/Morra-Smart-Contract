@@ -10,22 +10,36 @@ contract MorraContract {
     bool public gameStarted = false;
     gamer[2] gamers;
     uint public temp;
+    address owner;
+    string ownerName;
+    uint256 public pool;
+    uint public numberPickCheck;
+    uint public numbeGuessCheck;
+    
+    constructor(string memory name) public {
+        owner = msg.sender;
+        ownerName = name;
+    }
     
     function startGame (uint number) payable external{
         require(gameStarted==false);
         require((number>=1)&&(number<=5));
+        require((msg.value>=1 ether)&&(msg.value<=5 ether));
         gamers[0].gamerAddress = msg.sender;
         gamers[0].numberPick = msg.value;
-        gamers[0].numbeGuess = number;
+        gamers[0].numbeGuess = number*1e18; //convert interger to Wei
         gameStarted = true;
     }
     
     function joinGame (uint number) payable external{
         require(gameStarted==true);
         require((number>=1)&&(number<=5));
+        require((msg.value>=1 ether)&&(msg.value<=5 ether));
         gamers[1].gamerAddress = msg.sender;
         gamers[1].numberPick = msg.value;
-        gamers[1].numbeGuess = number;
+        gamers[1].numbeGuess = number*1e18; //convert interger to Wei
+        numberPickCheck = gamers[1].numberPick;
+        numbeGuessCheck = gamers[1].numbeGuess;
         getResult();
         gameStarted = false;
     }
@@ -34,7 +48,8 @@ contract MorraContract {
         
         temp = gamers[0].numberPick + gamers[1].numberPick;
         //  if gamer 1 win
-        if( (gamers[0].numberPick == gamers[1].numbeGuess) &&(gamers[1].numberPick != gamers[0].numbeGuess)){
+        if( (gamers[0].numberPick == gamers[1].numbeGuess)&&(gamers[1].numberPick != gamers[0].numbeGuess)){
+            pool = address(this).balance;
             sendEther(gamers[1].gamerAddress,temp);
         }
         //  if gamer 0 win
