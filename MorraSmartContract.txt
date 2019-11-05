@@ -8,7 +8,7 @@ contract MorraContract {
         uint256 numbeGuess;
     }
     bool public gameStarted = false;
-    gamer[2] gamers;
+    gamer[2] gamers;  
     uint public temp;
     address owner;
     string ownerName;
@@ -18,29 +18,28 @@ contract MorraContract {
         ownerName = name;
     }
     
-    function startGame (uint number) payable external{
-        require(gameStarted==false);
-        require((number>=1)&&(number<=5));
+    function bet (uint numberPicked) payable external{
+        // input validation check
+        require((numberPicked>=1)&&(numberPicked<=5));  
         require((msg.value>=1 ether)&&(msg.value<=5 ether));
-        gamers[0].gamerAddress = msg.sender;
-        gamers[0].numberPick = msg.value;
-        gamers[0].numbeGuess = number*1e18; //convert interger to Wei
-        gameStarted = true;
+        
+        // if game haven't started, assign the gambler a seat and wait for another gambler
+        if(gameStarted==false){
+            assignSeat(0,numberPicked);
+        }else if(gameStarted==true){
+            assignSeat(1,numberPicked);
+            getResult ();
+        }
+        gameStarted = !gameStarted;
     }
     
-    function joinGame (uint number) payable external{
-        require(gameStarted==true);
-        require((number>=1)&&(number<=5));
-        require((msg.value>=1 ether)&&(msg.value<=5 ether));
-        gamers[1].gamerAddress = msg.sender;
-        gamers[1].numberPick = msg.value;
-        gamers[1].numbeGuess = number*1e18; //convert interger to Wei
-        getResult();
-        gameStarted = false;
+    function assignSeat(uint number,uint numberPicked) internal{
+        gamers[number].gamerAddress = msg.sender;
+        gamers[number].numberPick = msg.value;
+        gamers[number].numbeGuess = numberPicked*1e18; //convert interger to Wei
     }
     
     function getResult () internal{
-        
         temp = gamers[0].numberPick + gamers[1].numberPick;
         //  if gamer 1 win
         if( (gamers[0].numberPick == gamers[1].numbeGuess)&&(gamers[1].numberPick != gamers[0].numbeGuess)){
