@@ -1,63 +1,80 @@
 pragma solidity >=0.4.22 <0.6.0;
 
-contract MorraContract {
+contract NewContract {
     
     struct gamer {
-        address payable gamerAddress;
         uint256 numberPick;
-        uint256 numbeGuess;
+        uint256 deposit;
     }
+    
+    mapping (address=>gamer) gamers;
+    address[2] person;
     bool public gameStarted = false;
-    gamer[2] gamers;  
-    uint public temp;
-    address owner;
-    string ownerName;
-    
-    constructor(string memory name) public {
-        owner = msg.sender;
-        ownerName = name;
-    }
-    
-    function bet (uint numberPicked) payable external{
-        // input validation check
+    bool public tableIsFull = false;
+
+    function startGame (uint numberPicked) payable external{
+        //cannot start a new game before the old game finished
+        require(gameStarted==false);
+        // pick a number between 1 and 5
         require((numberPicked>=1)&&(numberPicked<=5));  
+        // guess a number between 1 and 5
         require((msg.value>=1 ether)&&(msg.value<=5 ether));
         
-        // if game haven't started, assign the gambler a seat and wait for another gambler
-        if(gameStarted==false){
-            assignSeat(0,numberPicked);
-        }else if(gameStarted==true){
-            assignSeat(1,numberPicked);
-            getResult ();
-        }
+        // put the number in arguement   
+        gamers[msg.sender].numberPick = numberPicked*1e18;
+        // deposit = the guess value = msg.value
+        gamers[msg.sender].deposit = msg.value;
+        person[0] = msg.sender;
         gameStarted = !gameStarted;
-    }
-    
-    function assignSeat(uint number,uint numberPicked) internal{
-        gamers[number].gamerAddress = msg.sender;
-        gamers[number].numberPick = msg.value;
-        gamers[number].numbeGuess = numberPicked*1e18; //convert interger to Wei
-    }
+    }   
+    function joinGame (uint numberPicked) payable external{
+        //can only join when there is a new game
+        require(gameStarted==true);
+        //can not join when place is occupied
+        require(tableIsFull==false);
+        // pick a number between 1 and 5
+        require((numberPicked>=1)&&(numberPicked<=5));  
+        // guess a number between 1 and 5
+        require((msg.value>=1 ether)&&(msg.value<=5 ether));
+        
+        gamers[msg.sender].numberPick = numberPicked*1e18;
+        gamers[msg.sender].deposit = msg.value;
+        person[1] = msg.sender;
+        tableIsFull = !tableIsFull;
+        getResult();
+      
+    } 
     
     function getResult () internal{
-        temp = gamers[0].numberPick + gamers[1].numberPick;
-        //  if gamer 1 win
-        if( (gamers[0].numberPick == gamers[1].numbeGuess)&&(gamers[1].numberPick != gamers[0].numbeGuess)){
-            sendEther(gamers[1].gamerAddress,temp);
+        //  if gamer0 win, transfer the gamer1's deposit to gamer0
+        if((gamers[person[0]].deposit==gamers[person[1]].numberPick)&&(gamers[person[1]].deposit!=gamers[person[0]].numberPick)){
+            gamers[person[0]].deposit = gamers[person[0]].deposit + gamers[person[1]].deposit;
+            gamers[person[1]].deposit = 0;
         }
-        //  if gamer 0 win
-        else if( (gamers[1].numberPick == gamers[0].numbeGuess) &&(gamers[0].numberPick != gamers[1].numbeGuess)){
-            sendEther(gamers[0].gamerAddress,temp);
-        } 
-        // if it is a tie
-        else{
-            sendEther(gamers[0].gamerAddress,gamers[0].numberPick);
-            sendEther(gamers[1].gamerAddress,gamers[1].numberPick);
+        //  if gamer 1 win, transfer the gamer0's deposit to gamer1
+        else if ((gamers[person[0]].deposit!=gamers[person[1]].numberPick)&&(gamers[person[1]].deposit==gamers[person[0]].numberPick)){
+            gamers[person[1]].deposit = gamers[person[0]].deposit + gamers[person[1]].deposit;
+            gamers[person[0]].deposit = 0;
+        }
+        // if tie nothing changed
+        else {
+            
         }
     }
-    
-    function sendEther (address payable target, uint number) internal{
-        target.transfer(number);
+
+     function withdraw() public {
+        // only call this after the game finished
+        require(gameStarted ==true);
+        require(tableIsFull ==true);
+        // has money to withdraw
+        require(gamers[msg.sender].deposit>0);
+        uint256 amount = gamers[msg.sender].deposit;
+        gamers[msg.sender].deposit = 0;
+        msg.sender.transfer(amount);
+        
+        if(gamers[person[0]].deposit==0 && gamers[person[1]].deposit==0){
+        gameStarted = !gameStarted;
+        tableIsFull = !tableIsFull;
+       }
     }
-    
 }
