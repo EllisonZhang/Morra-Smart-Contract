@@ -1,7 +1,8 @@
 pragma solidity >=0.4.22 <0.6.0;
+import "github.com/OpenZeppelin/zeppelin-solidity/contracts/math/SafeMath.sol";
 
 contract NewContract {
-    
+    using SafeMath for uint;
     struct gamer {
         uint256 numberPick;
         uint256 deposit;
@@ -21,7 +22,7 @@ contract NewContract {
         require((msg.value>=1 ether)&&(msg.value<=5 ether));
         
         // put the number in arguement   
-        gamers[msg.sender].numberPick = numberPicked*1e18;
+        gamers[msg.sender].numberPick = numberPicked.mul(1e18);
         // deposit = the guess value = msg.value
         gamers[msg.sender].deposit = msg.value;
         person[0] = msg.sender;
@@ -37,7 +38,7 @@ contract NewContract {
         // guess a number between 1 and 5
         require((msg.value>=1 ether)&&(msg.value<=5 ether));
         
-        gamers[msg.sender].numberPick = numberPicked*1e18;
+        gamers[msg.sender].numberPick = numberPicked.mul(1e18);
         gamers[msg.sender].deposit = msg.value;
         person[1] = msg.sender;
         tableIsFull = !tableIsFull;
@@ -48,12 +49,12 @@ contract NewContract {
     function getResult () internal{
         //  if gamer0 win, transfer the gamer1's deposit to gamer0
         if((gamers[person[0]].deposit==gamers[person[1]].numberPick)&&(gamers[person[1]].deposit!=gamers[person[0]].numberPick)){
-            gamers[person[0]].deposit = gamers[person[0]].deposit + gamers[person[1]].deposit;
+            gamers[person[0]].deposit = gamers[person[0]].deposit.add(gamers[person[1]].deposit);
             gamers[person[1]].deposit = 0;
         }
         //  if gamer 1 win, transfer the gamer0's deposit to gamer1
         else if ((gamers[person[0]].deposit!=gamers[person[1]].numberPick)&&(gamers[person[1]].deposit==gamers[person[0]].numberPick)){
-            gamers[person[1]].deposit = gamers[person[0]].deposit + gamers[person[1]].deposit;
+            gamers[person[1]].deposit = gamers[person[0]].deposit.add(gamers[person[1]].deposit);
             gamers[person[0]].deposit = 0;
         }
         // if tie nothing changed
