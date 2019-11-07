@@ -4,63 +4,122 @@ import "github.com/OpenZeppelin/zeppelin-solidity/contracts/math/SafeMath.sol";
 contract NewContract {
     using SafeMath for uint;
     struct gamer {
-        uint256 numberPick;
         uint256 deposit;
+        uint256 numberPick;
+        uint256 numberGuess;
+        bytes32 numberPickHash;
+        bytes32 numberGuessedHash;
+        bool isRevealed;
     }
     
     mapping (address=>gamer) gamers;
     address[2] person;
     bool public gameStarted = false;
     bool public tableIsFull = false;
-
-    function startGame (uint numberPicked) payable external{
+    bool public winnerIsChecked = false;
+    bool public timeToReveal = false;
+    
+    function startGame (uint numberPicked, uint numberGuessed,string calldata cipher) payable external{
         //cannot start a new game before the old game finished
         require(gameStarted==false);
         // pick a number between 1 and 5
         require((numberPicked>=1)&&(numberPicked<=5));  
         // guess a number between 1 and 5
-        require((msg.value>=1 ether)&&(msg.value<=5 ether));
+        require((numberGuessed>=1)&&(numberGuessed<=5));
+        //pay 5 deposite first   
+        require(msg.value==10 ether);
         
-        // put the number in arguement   
-        gamers[msg.sender].numberPick = numberPicked.mul(1e18);
-        // deposit = the guess value = msg.value
+        // player0 submit the hash of numberPicked and number guessed
+        gamers[msg.sender].numberPickHash = keccak256(abi.encode(numberPicked,cipher));
+        gamers[msg.sender].numberGuessedHash = keccak256(abi.encode(numberGuessed,cipher));
         gamers[msg.sender].deposit = msg.value;
+        gamers[msg.sender].isRevealed = false;
+        // gamers[msg.sender].numberPick = numberPicked.mul(1e18);
+        // deposit = the guess value = msg.value
+        // gamers[msg.sender].deposit = msg.value;
         person[0] = msg.sender;
         gameStarted = !gameStarted;
-    }   
-    function joinGame (uint numberPicked) payable external{
+    }  
+    // the commit stage finished after joinGame is called
+    function joinGame (uint numberPicked, uint numberGuessed,string calldata cipher) payable external{
         //can only join when there is a new game
         require(gameStarted==true);
         //can not join when place is occupied
         require(tableIsFull==false);
+        //pay 5 deposite first
+        require(msg.value==10 ether);
         // pick a number between 1 and 5
         require((numberPicked>=1)&&(numberPicked<=5));  
         // guess a number between 1 and 5
-        require((msg.value>=1 ether)&&(msg.value<=5 ether));
+        require((numberGuessed>=1)&&(numberGuessed<=5));
+        // player must be different account
+        require(msg.sender != person[0]);
         
-        gamers[msg.sender].numberPick = numberPicked.mul(1e18);
+        // player1 submit the hash of numberPicked and number guessed
+        gamers[msg.sender].numberPickHash = keccak256(abi.encode(numberPicked,cipher));
+        gamers[msg.sender].numberGuessedHash = keccak256(abi.encode(numberGuessed,cipher));
         gamers[msg.sender].deposit = msg.value;
+        gamers[msg.sender].isRevealed = false;
+        // gamers[msg.sender].numberPick = numberPicked.mul(1e18);
+        // gamers[msg.sender].deposit = msg.value;
         person[1] = msg.sender;
         tableIsFull = !tableIsFull;
-        getResult();
-      
+        timeToReveal = !timeToReveal;
     } 
     
-    function getResult () internal{
-        //  if gamer0 win, transfer the gamer1's deposit to gamer0
-        if((gamers[person[0]].deposit==gamers[person[1]].numberPick)&&(gamers[person[1]].deposit!=gamers[person[0]].numberPick)){
-            gamers[person[0]].deposit = gamers[person[0]].deposit.add(gamers[person[1]].deposit);
-            gamers[person[1]].deposit = 0;
+    // reveal stage  only after game is started and two player finish commiting
+    function reveal (uint numberPicked, uint numberGuessed,string memory cipher) public {
+        //only player can reveal
+        require(msg.sender==person[0]||msg.sender==person[1]);
+        // pick a number between 1 and 5
+        require((numberPicked>=1)&&(numberPicked<=5));  
+        // guess a number between 1 and 5
+        require((numberGuessed>=1)&&(numberGuessed<=5));
+        // check commit finished
+        require(gameStarted == true && tableIsFull ==true && timeToReveal==true);
+        // cannot reveal again
+        require(gamers[msg.sender].isRevealed == false);
+        
+        // player reveal
+        if(gamers[msg.sender].numberPickHash == keccak256(abi.encode(numberPicked,cipher)) &&
+          gamers[msg.sender].numberGuessedHash == keccak256(abi.encode(numberGuessed,cipher))
+        ){
+            gamers[msg.sender].numberPick = numberPicked;
+            gamers[msg.sender].numberGuess = numberGuessed;
+            gamers[msg.sender].isRevealed = true;
         }
-        //  if gamer 1 win, transfer the gamer0's deposit to gamer1
-        else if ((gamers[person[0]].deposit!=gamers[person[1]].numberPick)&&(gamers[person[1]].deposit==gamers[person[0]].numberPick)){
-            gamers[person[1]].deposit = gamers[person[0]].deposit.add(gamers[person[1]].deposit);
-            gamers[person[0]].deposit = 0;
+        
+        // close reveal function after both player revealed
+        if(gamers[person[0]].isRevealed == true && gamers[person[1]].isRevealed == true){
+            timeToReveal = !timeToReveal;
+        }
+        
+    }
+    
+    function winnerCheck () public{
+        require(winnerIsChecked==false);
+        require(gameStarted ==true);
+        require(tableIsFull ==true);
+        //if both revealed 
+        require(gamers[person[0]].isRevealed == true && gamers[person[1]].isRevealed == true);
+        uint256 winnings = gamers[person[0]].numberGuess.add(gamers[person[1]].numberGuess);
+        
+        //  if gamer0 win
+        if((gamers[person[0]].numberGuess==gamers[person[1]].numberPick)&&(gamers[person[1]].numberGuess!=gamers[person[0]].numberPick)){
+            gamers[person[0]].deposit += winnings.mul(1e18);
+            gamers[person[1]].deposit -= winnings.mul(1e18);
+        }
+        //  if gamer 1 win
+        else if ((gamers[person[0]].numberGuess!=gamers[person[1]].numberPick)&&(gamers[person[1]].numberGuess==gamers[person[0]].numberPick)){
+            gamers[person[1]].deposit += winnings.mul(1e18);
+            gamers[person[0]].deposit -= winnings.mul(1e18);
         }
         // if tie nothing changed
         else {
             
         }
+        
+        winnerIsChecked = !winnerIsChecked;
     }
 
      function withdraw() public {
@@ -76,6 +135,7 @@ contract NewContract {
         if(gamers[person[0]].deposit==0 && gamers[person[1]].deposit==0){
         gameStarted = !gameStarted;
         tableIsFull = !tableIsFull;
+        winnerIsChecked = !winnerIsChecked;
        }
     }
 }
